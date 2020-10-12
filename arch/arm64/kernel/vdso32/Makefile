@@ -6,8 +6,14 @@
 
 ifeq ($(cc-name),clang)
   CC_ARM32 := $(CC) $(CLANG_TARGET_ARM32)
+ifeq ($(ld-name),lld)
+  LD_ARM32 := $(LD)
 else
-  CC_ARM32 := $(CROSS_COMPILE_ARM32)$(cc-name)
+  LD_ARM32 ?= $(CROSS_COMPILE_ARM32)ld
+endif
+else
+  CC_ARM32 ?= $(CROSS_COMPILE_ARM32)$(cc-name)
+  LD_ARM32 ?= $(CROSS_COMPILE_ARM32)ld
 endif
 
 ifneq ($(LLVM),)
@@ -145,7 +151,7 @@ $(asm-obj-vdso): %.o: %.S FORCE
 
 # Actual build commands
 quiet_cmd_vdsold = VDSOL32   $@
-      cmd_vdsold = $(LD_COMPAT) $(VDSO_LDFLAGS) \
+      cmd_vdsold = $(LD_ARM32) $(VDSO_LDFLAGS) \
                    -T $(filter %.lds,$^) $(filter %.o,$^) -o $@
 quiet_cmd_vdsocc = VDSOC32   $@
       cmd_vdsocc = $(CC_ARM32) -Wp,-MD,$(depfile) $(VDSO_CFLAGS) -c -o $@ $<
