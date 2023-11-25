@@ -271,7 +271,6 @@ struct chip_data_nt36672c {
     uint32_t                        partition;
     struct spi_device               *s_client;
     struct hw_resource              *hw_res;
-    struct monitor_data_v2          *monitor_data_v2;
     struct nvt_ts_trim_id_table     trim_id_table;
     struct nvt_ts_bin_map           *bin_map;
     bool                            esd_check_enabled;
@@ -313,6 +312,6 @@ struct chip_data_nt36672c {
 #endif //end of CONFIG_OPLUS_TP_APK
 };
 
-static int nvt_tp = 0;
+int nvt_tp = 0;
 
 #endif
