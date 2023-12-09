@@ -791,7 +791,7 @@ static unsigned int lcm_compare_id(void)
 static void lcm_setbacklight_cmdq(void *handle, unsigned int level)
 {
 	if ((!is_sala_a()) && (!is_sala_three_camera())) {
-		LCM_LOGI("%s,nt36672c sala backlight: level = %d\n", __func__, level);
+		LCM_LOGD("%s,nt36672c sala backlight: level = %d\n", __func__, level);
 		if (level == 0) {
 			bl_level_dimming_exit[1].para_list[0] = (level >> 8) & 0x0F;
 			bl_level_dimming_exit[1].para_list[1] = level & 0xFF;
