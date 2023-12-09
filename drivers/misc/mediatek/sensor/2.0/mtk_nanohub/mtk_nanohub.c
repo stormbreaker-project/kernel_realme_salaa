@@ -511,7 +511,7 @@ static void mtk_nanohub_ipi_handler(int id,
 	if (cmd != NULL)
 		cmd->handler(rsp, len);
 	else {
-		pr_err("cannot find cmd! try to find oplus cmd\n");
+		pr_debug("cannot find cmd! try to find oplus cmd\n");
 		SCP_sensorHub_set_oplus_cmd(rsp,len);
 	}
 	//#endif
