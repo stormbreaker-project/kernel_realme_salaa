@@ -194,7 +194,7 @@ static int32_t nvt_write_addr(struct spi_device *client, uint32_t addr, uint8_t 
 }
 
 #if NVT_TOUCH_ESD_DISP_RECOVERY
-void nvt_sw_reset_idle(struct chip_data_nt36672c *chip_info)
+static void nvt_sw_reset_idle(struct chip_data_nt36672c *chip_info)
 {
 	//---MCU idle cmds to SWRST_N8_ADDR---
     TPD_INFO("%s is called!\n", __func__);
@@ -211,7 +211,7 @@ Description:
 return:
     n.a.
 *******************************************************/
-void nvt_bootloader_reset_noflash(struct chip_data_nt36672c *chip_info)
+static void nvt_bootloader_reset_noflash(struct chip_data_nt36672c *chip_info)
 {
     //---reset cmds to SWRST_N8_ADDR---
     TPD_INFO("%s is called!\n", __func__);
@@ -219,7 +219,6 @@ void nvt_bootloader_reset_noflash(struct chip_data_nt36672c *chip_info)
 
     mdelay(5);  //wait tBRST2FR after Bootload RST
 //#ifdef OPLUS_FEATURE_TP_BASIC
-/*Xiaofei.Gong@BSP.TP.Function, 2020/10/15, Solve the problem of TP stuck point .*/
     if (chip_info->spi_fast_read_support) {
         nvt_write_addr(chip_info->s_client, SPI_READ_FAST, 0x40);
         TPD_INFO("%s load spi fast read 0x40\n", __func__);
@@ -1350,7 +1349,7 @@ fail:
     return ret;
 }
 
-int32_t nvt_nf_detect_chip(struct chip_data_nt36672c *chip_info)
+/* static int32_t nvt_nf_detect_chip(struct chip_data_nt36672c *chip_info)
 {
     int32_t ret = 0;
     int i;
@@ -1373,7 +1372,7 @@ int32_t nvt_nf_detect_chip(struct chip_data_nt36672c *chip_info)
         }
     }
     return -ENODEV;
-}
+} */
 
 
 /********* Start of implementation of oplus_touchpanel_operations callbacks********************/
@@ -2808,7 +2807,7 @@ static int32_t nvt_polling_hand_shake_status(struct chip_data_nt36672c *chip_inf
 {
     uint8_t buf[8] = {0};
     int32_t i = 0;
-    const int32_t retry = 60;
+    const int32_t retry = 50;
 
     for (i = 0; i < retry; i++) {
         //---set xdata index to EVENT BUF ADDR---
@@ -3084,6 +3083,7 @@ static fw_update_state nvt_fw_update_sub(void *chip_data, const struct firmware 
     struct chip_data_nt36672c *chip_info = (struct chip_data_nt36672c *)chip_data;
     struct touchpanel_data *ts = spi_get_drvdata(chip_info->s_client);
     struct firmware *request_fw_headfile = NULL;
+    struct monitor_data_v2 *monitor_data = chip_info->monitor_data_v2;
 
     //check bin file size(116kb)
     //if(fw != NULL && fw->size != FW_BIN_SIZE) {
@@ -3097,6 +3097,7 @@ static fw_update_state nvt_fw_update_sub(void *chip_data, const struct firmware 
     if(fw == NULL) {
         request_fw_headfile = kzalloc(sizeof(struct firmware), GFP_KERNEL);
         if(request_fw_headfile == NULL) {
+            tp_healthinfo_report(monitor_data, HEALTH_FW_UPDATE, "FW_HF_KZL_failed");
             TPD_INFO("%s kzalloc failed!\n", __func__);
             goto out_fail;
         }
@@ -3116,6 +3117,7 @@ static fw_update_state nvt_fw_update_sub(void *chip_data, const struct firmware 
                 fw = request_fw_headfile;
 
             } else {
+                tp_healthinfo_report(monitor_data, HEALTH_FW_UPDATE, "FW_DT_NL_failed");
                 TPD_INFO("firmware_data is NULL! exit firmware update!\n");
                 goto out_fail;
             }
@@ -3130,12 +3132,14 @@ static fw_update_state nvt_fw_update_sub(void *chip_data, const struct firmware 
 
 	// check FW need to write size
     if (nvt_get_fw_need_write_size(fw)) {
+        tp_healthinfo_report(monitor_data, HEALTH_FW_UPDATE, "GET_FW_WR_SZ_failed");
         TPD_INFO("get fw need to write size fail!\n");
         goto out_fail;
     }
 
     // check if FW version add FW version bar equals 0xFF
     if (*(fw->data + FW_BIN_VER_OFFSET) + * (fw->data + FW_BIN_VER_BAR_OFFSET) != 0xFF) {
+        tp_healthinfo_report(monitor_data, HEALTH_FW_UPDATE, "FWV_FWVB_NFF_failed");
         TPD_INFO("bin file FW_VER + FW_VER_BAR should be 0xFF!\n");
         TPD_INFO("FW_VER=0x%02X, FW_VER_BAR=0x%02X\n", *(fw->data + FW_BIN_VER_OFFSET), *(fw->data + FW_BIN_VER_BAR_OFFSET));
         goto out_fail;
@@ -3145,6 +3149,7 @@ static fw_update_state nvt_fw_update_sub(void *chip_data, const struct firmware 
     ret = nvt_check_bin_checksum(fw->data, fw->size);
     if (ret) {
         if (fw != request_fw_headfile) {
+            tp_healthinfo_report(monitor_data, HEALTH_FW_UPDATE, "IMG_CHKSUM_failed");
             TPD_INFO("Image fw check checksum failed, reload fw from array\n");
 
             goto out_fail;
@@ -3159,6 +3164,7 @@ static fw_update_state nvt_fw_update_sub(void *chip_data, const struct firmware 
     /* BIN Header Parser */
     ret = nvt_bin_header_parser(chip_info, fw->data, fw->size);
     if (ret) {
+        tp_healthinfo_report(monitor_data, HEALTH_FW_UPDATE, "BIN_HDER_PARSER_failed");
         TPD_INFO("bin header parser failed\n");
         goto out_fail;
     }
@@ -3166,6 +3172,7 @@ static fw_update_state nvt_fw_update_sub(void *chip_data, const struct firmware 
     /* initial buffer and variable */
     ret = Download_Init(chip_info);
     if (ret) {
+        tp_healthinfo_report(monitor_data, HEALTH_FW_UPDATE, "DL_INIT_failed");
         TPD_INFO("Download Init failed. (%d)\n", ret);
         goto out_fail;
     }
@@ -3175,6 +3182,7 @@ static fw_update_state nvt_fw_update_sub(void *chip_data, const struct firmware 
         ret = Download_Firmware_HW_CRC(chip_info, fw);
     }
     if (ret) {
+        tp_healthinfo_report(monitor_data, HEALTH_FW_UPDATE, "DL_FW_failed");
         TPD_INFO("Download Firmware failed. (%d)\n", ret);
         goto out_fail;
     }
@@ -3189,6 +3197,7 @@ static fw_update_state nvt_fw_update_sub(void *chip_data, const struct firmware 
     }
     ret = nvt_get_fw_info_noflash(chip_info);
     if (ret) {
+        tp_healthinfo_report(monitor_data, HEALTH_FW_UPDATE, "GET_FW_INFO_failed");
         TPD_INFO("nvt_get_fw_info_noflash failed. (%d)\n", ret);
         goto out_fail;
     }
@@ -4005,6 +4014,7 @@ OUT:
 
     snprintf(message, MESSAGE_SIZE, "%d error(s). %s%s\n", err_cnt, err_cnt?"":"All test passed.",buf);
     TPD_INFO("%d errors. %s", err_cnt, buf);
+    tp_healthinfo_report(chip_info->monitor_data_v2, HEALTH_TEST_BLACKSCREEN, &err_cnt);
 
 RELEASE_DATA:
     if (raw_record)
@@ -5354,6 +5364,7 @@ RELEASE_FIRMWARE:
     seq_printf(s, "FW:0x%llx\n", nvt_testdata->TP_FW);
     seq_printf(s, "%d error(s). %s\n", err_cnt, err_cnt ? "" : "All test passed.");
     TPD_INFO(" TP auto test %d error(s). %s\n", err_cnt, err_cnt ? "" : "All test passed.");
+    tp_healthinfo_report(chip_info->monitor_data_v2, HEALTH_TEST_AUTO, &err_cnt);
     release_firmware(fw);
     kfree(fw_name_test);
     return;
@@ -5657,7 +5668,6 @@ static void nova_init_oplus_apk_op(struct touchpanel_data *ts)
 #endif // end of CONFIG_OPLUS_TP_APK
 
 //#ifdef OPLUS_FEATURE_TP_BASIC
-/*Xiaofei.Gong@BSP.TP.Function, 2020/10/15, Solve the problem of TP stuck point .*/
 static int nt36672c_parse_dts(struct chip_data_nt36672c *chip_info, struct spi_device *client)
 {
     struct device *dev;
@@ -5674,13 +5684,15 @@ static int nt36672c_parse_dts(struct chip_data_nt36672c *chip_info, struct spi_d
 //#endif OPLUS_FEATURE_TP_BASIC
 
 /*********** Start of SPI Driver and Implementation of it's callbacks*************************/
-int __maybe_unused nvt_tp_probe(struct spi_device *client)
+static int __maybe_unused nvt_tp_probe(struct spi_device *client)
 {
     struct chip_data_nt36672c *chip_info = NULL;
     struct touchpanel_data *ts = NULL;
+    u64 time_counter = 0;
     int ret = -1;
 
     TPD_INFO("%s  is called\n", __func__);
+    reset_healthinfo_time_counter(&time_counter);
 
     /* 1. alloc chip info */
     chip_info = kzalloc(sizeof(struct chip_data_nt36672c), GFP_KERNEL);
@@ -5788,6 +5800,7 @@ int __maybe_unused nvt_tp_probe(struct spi_device *client)
     chip_info->fw_name = ts->panel_data.fw_name;
     chip_info->dev = ts->dev;
     chip_info->test_limit_name = ts->panel_data.test_limit_name;
+    chip_info->monitor_data_v2 = &ts->monitor_data_v2;
 
     //reset esd handle time interval
     if (ts->esd_handle_support) {
@@ -5819,6 +5832,9 @@ int __maybe_unused nvt_tp_probe(struct spi_device *client)
         }
     }
 
+    if (ts->health_monitor_v2_support) {
+        tp_healthinfo_report(&ts->monitor_data_v2, HEALTH_PROBE, &time_counter);
+    }
     chip_info->probe_done = 1;
     TPD_INFO("%s, probe normal end\n", __func__);
 	nvt_tp = 1;
@@ -5941,7 +5957,11 @@ static void __exit nvt_driver_exit(void)
     spi_unregister_driver(&tp_spi_driver);
 }
 
+#ifdef CONFIG_TOUCHPANEL_LATE_INIT
+late_initcall(nvt_driver_init);
+#else
 module_init(nvt_driver_init);
+#endif
 module_exit(nvt_driver_exit);
 
 MODULE_DESCRIPTION("Novatek Touchscreen Driver");
