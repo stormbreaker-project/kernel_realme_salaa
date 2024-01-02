@@ -4,6 +4,7 @@ function compile()
 source ~/.bashrc && source ~/.profile
 export LC_ALL=C && export USE_CCACHE=1
 ccache -M 25G
+TANGGAL=$(date +"%Y%m%d-%H")
 export ARCH=arm64
 export KBUILD_BUILD_HOST=android-build
 export KBUILD_BUILD_USER="kardebayan"
@@ -39,7 +40,7 @@ echo -e " Kernel Compile Successful"
 git clone --depth=1 https://github.com/kardebayan/AnyKernel3.git AnyKernel
 cp out/arch/arm64/boot/Image.gz AnyKernel
 cd AnyKernel
-zip -r9 Stormbreaker-salaa-v1.zip *
+zip -r9 Stormbreaker-salaa-${TANGGAL}.zip *
 cd ../
 fi
 }
