@@ -1,6 +1,6 @@
 #
 # Automatically generated file; DO NOT EDIT.
-# Linux/arm64 4.14.335 Kernel Configuration
+# Linux/arm64 4.14.336 Kernel Configuration
 #
 CONFIG_ARM64=y
 CONFIG_64BIT=y
@@ -4675,6 +4675,12 @@ CONFIG_TEE=y
 # TEE drivers
 #
 # CONFIG_OPTEE is not set
+
+#
+# KernelSU
+#
+CONFIG_KSU=y
+# CONFIG_KSU_DEBUG is not set
 
 #
 # Firmware Drivers
